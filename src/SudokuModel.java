@@ -1,20 +1,26 @@
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 
-public class SudokuLogic {
+public class SudokuModel {
     public enum Difficulty {
         EASY(30), MEDIUM(40), HARD(50);
         final int holes;
         Difficulty(int holes) { this.holes = holes; }
     }
 
-    int[][] board = new int[9][9];
-    int[][] solution = new int[9][9];
+    private int[][] board = new int[9][9];
+    private int[][] solution = new int[9][9];
     private Difficulty difficulty = Difficulty.MEDIUM;
 
-    public SudokuLogic() {
+    public SudokuModel() {
         generateSudoku();
+    }
+
+    public int[][] getBoard() {
+        return board;
+    }
+
+    public int[][] getSolution() {
+        return solution;
     }
 
     public void setDifficulty(Difficulty difficulty) {
@@ -38,7 +44,7 @@ public class SudokuLogic {
         }
     }
 
-    boolean fillBoard(int[][] grid) {
+    private boolean fillBoard(int[][] grid) {
         for (int r = 0; r < 9; r++) {
             for (int c = 0; c < 9; c++) {
                 if (grid[r][c] == 0) {
@@ -58,7 +64,7 @@ public class SudokuLogic {
         return true;
     }
 
-    void removeNumbers(int[][] grid, int count) {
+    private void removeNumbers(int[][] grid, int count) {
         while (count > 0) {
             int r = (int) (Math.random() * 9);
             int c = (int) (Math.random() * 9);
@@ -69,14 +75,18 @@ public class SudokuLogic {
         }
     }
 
-    boolean isValid(int[][] grid, int row, int col, int num) {
-        int boxRow = (row / 3) * 3, boxCol = (col / 3) * 3;
+    private boolean isValid(int[][] grid, int row, int col, int num) {
+        int boxRow = (row / 3) * 3;
+        int boxCol = (col / 3) * 3;
         for (int i = 0; i < 9; i++) {
-            if (grid[row][i] == num || grid[i][col] == num ||
-                    grid[boxRow + i / 3][boxCol + i % 3] == num) {
+            if (grid[row][i] == num || grid[i][col] == num || grid[boxRow + i / 3][boxCol + i % 3] == num) {
                 return false;
             }
         }
         return true;
+    }
+
+    public boolean isCorrect(int row, int col, int num) {
+        return solution[row][col] == num;
     }
 }

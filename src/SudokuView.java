@@ -1,17 +1,18 @@
-import java.awt.*;
 import javax.swing.*;
+import java.awt.*;
 
-public class SudokuUI {
-    private SudokuLogic logic;
+public class SudokuView {
+    private final SudokuController controller;
+
     private final JFrame frame = new JFrame("Sudoku");
     private final JLabel textLabel = new JLabel("Errors: 0");
-    private final JPanel textPanel = new JPanel();
     private final JPanel boardPanel = new JPanel();
     private final JPanel buttonsPanel = new JPanel();
-    private JButton numSelected = null;
-    private int errors = 0;
     private final JButton[] numberButtons = new JButton[9];
     private final boolean[] numberUsed = new boolean[9];
+
+    private JButton numSelected = null;
+    private int errors = 0;
 
     static class Tile extends JButton {
         int r, c;
@@ -21,8 +22,9 @@ public class SudokuUI {
         }
     }
 
-    public SudokuUI() {
-        logic = new SudokuLogic();
+    public SudokuView(SudokuController controller) {
+        this.controller = controller;
+
         frame.setSize(600, 700);
         frame.setResizable(false);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -32,13 +34,13 @@ public class SudokuUI {
         JMenuBar menuBar = new JMenuBar();
         JMenu menu = new JMenu("Складність");
 
-        JMenuItem easy = new JMenuItem("Легкий");
-        JMenuItem medium = new JMenuItem("Середній");
-        JMenuItem hard = new JMenuItem("Складний");
+        JMenuItem easy = new JMenuItem("Легка");
+        JMenuItem medium = new JMenuItem("Середня");
+        JMenuItem hard = new JMenuItem("Складна");
 
-        easy.addActionListener(e -> changeDifficulty(SudokuLogic.Difficulty.EASY));
-        medium.addActionListener(e -> changeDifficulty(SudokuLogic.Difficulty.MEDIUM));
-        hard.addActionListener(e -> changeDifficulty(SudokuLogic.Difficulty.HARD));
+        easy.addActionListener(e -> changeDifficulty(SudokuModel.Difficulty.EASY));
+        medium.addActionListener(e -> changeDifficulty(SudokuModel.Difficulty.MEDIUM));
+        hard.addActionListener(e -> changeDifficulty(SudokuModel.Difficulty.HARD));
 
         menu.add(easy);
         menu.add(medium);
@@ -48,8 +50,7 @@ public class SudokuUI {
 
         textLabel.setFont(new Font("Arial", Font.BOLD, 30));
         textLabel.setHorizontalAlignment(JLabel.CENTER);
-        textPanel.add(textLabel);
-        frame.add(textPanel, BorderLayout.NORTH);
+        frame.add(textLabel, BorderLayout.NORTH);
 
         boardPanel.setLayout(new GridLayout(9, 9));
         frame.add(boardPanel, BorderLayout.CENTER);
@@ -62,13 +63,14 @@ public class SudokuUI {
         frame.setVisible(true);
     }
 
-    void changeDifficulty(SudokuLogic.Difficulty difficulty) {
-        logic.setDifficulty(difficulty);
+    private void changeDifficulty(SudokuModel.Difficulty difficulty) {
+        controller.changeDifficulty(difficulty);
         resetGame();
     }
 
-    void setupTiles() {
+    private void setupTiles() {
         boardPanel.removeAll();
+        int[][] board = controller.getBoard();
 
         for (int r = 0; r < 9; r++) {
             for (int c = 0; c < 9; c++) {
@@ -81,8 +83,8 @@ public class SudokuUI {
                 int right = (c == 2 || c == 5) ? 5 : 1;
                 tile.setBorder(BorderFactory.createMatteBorder(1, 1, bottom, right, Color.black));
 
-                if (logic.board[r][c] != 0) {
-                    tile.setText(String.valueOf(logic.board[r][c]));
+                if (board[r][c] != 0) {
+                    tile.setText(String.valueOf(board[r][c]));
                 }
 
                 boardPanel.add(tile);
@@ -92,7 +94,7 @@ public class SudokuUI {
                 tile.addActionListener(e -> {
                     if (numSelected != null && tile.getText().isEmpty()) {
                         int selectedNum = Integer.parseInt(numSelected.getText());
-                        if (logic.solution[row][col] == selectedNum) {
+                        if (controller.isCorrect(row, col, selectedNum)) {
                             tile.setText(numSelected.getText());
                             tile.setBackground(Color.pink);
                             checkCompletion();
@@ -109,7 +111,7 @@ public class SudokuUI {
         boardPanel.repaint();
     }
 
-    void setupButtons() {
+    private void setupButtons() {
         for (int i = 1; i <= 9; i++) {
             JButton button = new JButton(String.valueOf(i));
             button.setFont(new Font("Arial", Font.BOLD, 20));
@@ -118,8 +120,8 @@ public class SudokuUI {
             buttonsPanel.add(button);
             numberButtons[i - 1] = button;
 
+            int selected = i;
             button.addActionListener(e -> {
-                int selected = Integer.parseInt(button.getText());
                 if (numberUsed[selected - 1]) return;
 
                 if (numSelected != null) {
@@ -136,23 +138,22 @@ public class SudokuUI {
         }
     }
 
-    void checkCompletion() {
-        boolean gameComplete = true;
+    private void checkCompletion() {
+        boolean complete = true;
         int nextSelectable = -1;
 
         for (int num = 1; num <= 9; num++) {
             int count = 0;
             boolean numComplete = true;
-
             for (int r = 0; r < 9; r++) {
                 for (int c = 0; c < 9; c++) {
-                    if (logic.solution[r][c] == num) {
+                    if (controller.getSolution()[r][c] == num) {
                         Tile tile = (Tile) boardPanel.getComponent(r * 9 + c);
                         String tileText = tile.getText().trim();
 
                         if (!tileText.equals(String.valueOf(num))) {
                             numComplete = false;
-                            gameComplete = false;
+                            complete = false;
                         } else {
                             count++;
                         }
@@ -181,7 +182,7 @@ public class SudokuUI {
 
         autoFillRemainingNumber();
 
-        if (gameComplete) {
+        if (complete) {
             int choice = JOptionPane.showOptionDialog(
                     frame,
                     "Ви виграли!\nКількість помилок: " + errors + "\nБажаєте почати нову гру?",
@@ -201,25 +202,22 @@ public class SudokuUI {
         }
     }
 
-    void resetGame() {
+    private void resetGame() {
         errors = 0;
         textLabel.setText("Errors: 0");
         numSelected = null;
-
         for (int i = 0; i < 9; i++) {
             numberUsed[i] = false;
             numberButtons[i].setBackground(Color.white);
         }
-
-        logic.generateSudoku();
+        controller.generateNewGame();
         setupTiles();
     }
 
-    void autoFillRemainingNumber() {
+    private void autoFillRemainingNumber() {
         int remaining = -1;
         int remainingCount = 0;
 
-        // Знаходимо єдину цифру, яка ще не заповнена
         for (int i = 0; i < 9; i++) {
             if (!numberUsed[i]) {
                 remaining = i + 1;
@@ -228,10 +226,9 @@ public class SudokuUI {
         }
 
         if (remainingCount == 1) {
-            // Автоматично ставимо цю цифру в усі порожні клітинки, де вона має бути
             for (Component comp : boardPanel.getComponents()) {
                 if (comp instanceof Tile tile && tile.getText().isEmpty()) {
-                    if (logic.solution[tile.r][tile.c] == remaining) {
+                    if (controller.getSolution()[tile.r][tile.c] == remaining) {
                         tile.setText(String.valueOf(remaining));
                         tile.setBackground(Color.pink);
                     }
@@ -242,12 +239,11 @@ public class SudokuUI {
             numberButtons[remaining - 1].setBackground(Color.darkGray);
             numSelected = null;
 
-            checkCompletion();  // Перевіримо, чи гра завершена
+            checkCompletion();
         }
     }
 
-
-    void highlightSelectedNumber(int selectedNum) {
+    private void highlightSelectedNumber(int selectedNum) {
         for (Component component : boardPanel.getComponents()) {
             if (component instanceof Tile tile) {
                 if (!tile.getText().isEmpty()) {
